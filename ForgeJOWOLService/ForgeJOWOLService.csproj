@@ -1,9 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <Nullable>enable</Nullable>
+        <TargetFramework>net10.0</TargetFramework> <OutputType>Exe</OutputType>
         <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <PublishAot>true</PublishAot>
+
+        <InvariantGlobalization>true</InvariantGlobalization>
+      
         <UserSecretsId>dotnet-ForgeJOWOLService-79a9fb36-775f-4817-b61e-69a83f838947</UserSecretsId>
     </PropertyGroup>
 

@@ -8,3 +8,7 @@
   ForgeJO, the CI runner machine spends most of its life sleeping, if a CI job is
   waiting to be run, this service first checks to see if its alive (ping), if not
   we send the magic WOL packet to it.
+
+To build:
+
+dotnet publish -c Release -r linux-x64 --self-contained true
