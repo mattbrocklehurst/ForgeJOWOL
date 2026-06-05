@@ -140,26 +140,32 @@ public class Worker : BackgroundService
             }
         }
             
-        public static void SendMagicPacket(string macAddress)
+        private void SendMagicPacket(string macAddress)
         {
-            string cleanMac = macAddress.Replace(":", "").Replace("-", "");
-            byte[] macBytes = Enumerable.Range(0, cleanMac.Length / 2)
-                .Select(x => Convert.ToByte(cleanMac.Substring(x * 2, 2), 16))
+            _logger.LogInformation($"Broadcasting standard Wake-on-LAN magic packet to {macAddress}...");
+
+            // Convert MAC string to raw bytes
+            byte[] macBytes = macAddress.Split(':')
+                .Select(x => Convert.ToByte(x, 16))
                 .ToArray();
 
-            //  Build the Magic Packet
-            // 6 bytes of 0xFF followed by 16 repetitions of the MAC address
-            byte[] magicPacket = Enumerable.Repeat((byte)0xFF, 6)
-                .Concat(Enumerable.Repeat(macBytes, 16).SelectMany(m => m))
-                .ToArray();
-
-            using (UdpClient client = new UdpClient())
+            // Construct standard 102-byte Magic Packet payload (6 bytes of 0xFF + 16 iterations of MAC)
+            byte[] packet = new byte[102];
+            for (int i = 0; i < 6; i++) packet[i] = 0xFF;
+            for (int i = 1; i <= 16; i++)
             {
-                client.EnableBroadcast = true;
-            
-                IPEndPoint endPoint = new IPEndPoint(IPAddress.Broadcast, 9);
-            
-                client.Send(magicPacket, magicPacket.Length, endPoint);
+                Buffer.BlockCopy(macBytes, 0, packet, i * 6, 6);
             }
+
+            // Initialize raw UDP broadcast socket
+            using var client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+
+            // Revert back to the standard global broadcast endpoint
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Broadcast, 9);
+
+            // Fire frame down the wire
+            client.SendTo(packet, endPoint);
+            _logger.LogInformation("Global WOL broadcast packet sent successfully.");
         }
     }
