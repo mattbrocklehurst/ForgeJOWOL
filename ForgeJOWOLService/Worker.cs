@@ -59,8 +59,12 @@ public class Worker : BackgroundService
             _options = options.Value; 
             _httpClient = new HttpClient();
             _httpClient.BaseAddress = new Uri(_options.BaseUrl);
-            _httpClient.DefaultRequestHeaders.Authorization = 
-                new AuthenticationHeaderValue("token", _options.AccessToken);
+            _httpClient.DefaultRequestHeaders.Authorization = null;
+
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation(
+                "Authorization", 
+                $"token {_options.AccessToken.Trim()}"
+            );
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -72,35 +76,37 @@ public class Worker : BackgroundService
                 try
                 {
                     // Query the actions runner jobs endpoint
-                    var response = await _httpClient.GetAsync("api/v1/actions/runners/jobs", stoppingToken);
-
+                    var response = await _httpClient.GetAsync("api/v1/admin/actions/runners/jobs", stoppingToken);
                     if (response.IsSuccessStatusCode)
                     {
                         _logger.LogInformation("Successfully polled Forgejo API.");
-                        
+    
+                        // Allow nullable return from the parser safely
                         var jobs = await response.Content.ReadFromJsonAsync(
                             ForgejoJsonContext.Default.ListForgejoJob, 
                             stoppingToken);
 
-                        if (jobs?.Any(j => j.Status == "queued") == true)
+                        // If jobs payload is null
+                        if (jobs is not null)
                         {
                             _logger.LogInformation("Queued jobs detected!");
-                
+
                             bool isAlive = await IsTargetAlive(_options.RunnerIP);
-            
+
                             if (!isAlive)
                             {
-                                _logger.LogInformation("Job queued and NUC is asleep. Sending WOL...");
+                                _logger.LogInformation("Job queued and runner is asleep. Sending WOL...");
                                 SendMagicPacket(_options.MacAddress);
                             }
                             else
                             {
-                                _logger.LogInformation("Job queued, but NUC is already awake.");
+                                _logger.LogInformation("Job queued, but runner is already awake.");
                             }
                         }
                         else
                         {
-                            _logger.LogInformation("No jobs queued");
+                            // Handles both structural [] arrays and raw null states clean
+                            _logger.LogInformation("No jobs queued (Queue status: Idle).");
                         }
                     }
                     else
